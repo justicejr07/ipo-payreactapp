@@ -38,28 +38,26 @@ db.once("open", () => {
 
 const app = express();
 
-app.engine('ejs', ejsMate)
+app.engine('ejs', ejsMate);
 app.set('view engine', 'ejs');
-app.set('views', path.join(__dirname, 'views'))
+app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(methodOverride('_method'));
-app.use(express.static(path.join(__dirname, 'public')))
-app.use(mongoSanitize({
-    replaceWith: '_'
-}))
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(mongoSanitize({ replaceWith: '_' }));
 
 const secret = process.env.SECRET || 'thisshouldbeabettersecret!';
 
 const store = new MongoDBStore({
     url: dbUrl,
     secret,
-    touchAfter: 24 * 60 * 60 // after 1 day, update the session, else, only update session when something change
+    touchAfter: 24 * 60 * 60 // Update session only once a day unless changed
 });
 
 store.on("error", function (e) {
-    console.log("SESSION STORE ERROR", e)
-})
+    console.log("SESSION STORE ERROR", e);
+});
 
 const sessionConfig = {
     store,
@@ -69,21 +67,18 @@ const sessionConfig = {
     saveUninitialized: true,
     cookie: {
         httpOnly: true,
-        // secure: true,
-        expires: Date.now() + 1000 * 60 * 60 * 24 * 7,
+        // secure: true, // Uncomment in production with HTTPS
+        expires: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
         maxAge: 1000 * 60 * 60 * 24 * 7
     }
-}
+};
 
 app.use(session(sessionConfig));
 app.use(flash());
 app.use(helmet({ contentSecurityPolicy: false }));
 
-
 const scriptSrcUrls = [
     "https://stackpath.bootstrapcdn.com/",
-    "https://api.tiles.mapbox.com/",
-    "https://api.mapbox.com/",
     "https://kit.fontawesome.com/",
     "https://cdnjs.cloudflare.com/",
     "https://cdn.jsdelivr.net",
@@ -91,16 +86,8 @@ const scriptSrcUrls = [
 const styleSrcUrls = [
     "https://kit-free.fontawesome.com/",
     "https://stackpath.bootstrapcdn.com/",
-    "https://api.mapbox.com/",
-    "https://api.tiles.mapbox.com/",
     "https://fonts.googleapis.com/",
     "https://use.fontawesome.com/",
-];
-const connectSrcUrls = [
-    "https://api.mapbox.com/",
-    "https://a.tiles.mapbox.com/",
-    "https://b.tiles.mapbox.com/",
-    "https://events.mapbox.com/",
 ];
 const fontSrcUrls = [];
 
@@ -108,7 +95,7 @@ app.use(
     helmet.contentSecurityPolicy({
         directives: {
             defaultSrc: [],
-            connectSrc: ["'self'", ...connectSrcUrls],
+            connectSrc: ["'self'"],
             scriptSrc: ["'unsafe-inline'", "'self'", ...scriptSrcUrls],
             styleSrc: ["'self'", "'unsafe-inline'", ...styleSrcUrls],
             workerSrc: ["'self'", "blob:"],
@@ -117,14 +104,13 @@ app.use(
                 "'self'",
                 "blob:",
                 "data:",
-                `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/`, 
+                `https://res.cloudinary.com/${process.env.CLOUDINARY_CLOUD_NAME}/`,
                 "https://images.unsplash.com/",
             ],
             fontSrc: ["'self'", ...fontSrcUrls],
         },
     })
 );
-
 
 app.use(passport.initialize());
 app.use(passport.session());
@@ -134,36 +120,31 @@ passport.serializeUser(User.serializeUser());
 passport.deserializeUser(User.deserializeUser());
 
 app.use((req, res, next) => {
-    res.locals.currentUser = req.user; // req.user is user infomation in session that passport define for us
-    res.locals.success = req.flash('success'); // message when success is invoked in route handler
+    res.locals.currentUser = req.user;
+    res.locals.success = req.flash('success');
     res.locals.error = req.flash('error');
     next();
-})
-
-
-app.use('/', userRoutes);
-app.use('/campgrounds', campgroundRoutes)
-app.use('/campgrounds/:id/reviews', reviewRoutes)
-
-
-app.get('/', (req, res) => {
-    res.render('home')
 });
 
+app.use('/', userRoutes);
+app.use('/campgrounds', campgroundRoutes);
+app.use('/campgrounds/:id/reviews', reviewRoutes);
+
+app.get('/', (req, res) => {
+    res.render('home');
+});
 
 app.all('*', (req, res, next) => {
-    next(new ExpressError('Page Not Found', 404))
-})
+    next(new ExpressError('Page Not Found', 404));
+});
 
 app.use((err, req, res, next) => {
     const { statusCode = 500 } = err;
-    if (!err.message) err.message = 'Oh No, Something Went Wrong!'
-    res.status(statusCode).render('error', { err })
-})
+    if (!err.message) err.message = 'Oh No, Something Went Wrong!';
+    res.status(statusCode).render('error', { err });
+});
 
 const port = process.env.PORT || 3000;
 app.listen(port, () => {
-    console.log(`Serving on port ${port}`)
-})
-
-
+    console.log(`Serving on port ${port}`);
+});
